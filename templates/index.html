@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Smart Health Risk Prediction System — Enter your health details and get an instant, personalized risk assessment." />
+  <title>Smart Health Risk Prediction System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫀</text></svg>" />
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand">
+    <div class="logo-icon">🫀</div>
+    HealthRisk AI
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link active">Assessment</a>
+    <a href="/history" class="nav-link">History</a>
+  </div>
+</nav>
+
+<!-- ── Loading Overlay ── -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <p class="loading-text">Analyzing your health data…</p>
+</div>
+
+<div class="container">
+
+  <!-- ── Hero ── -->
+  <div class="hero fade-in">
+    <div class="hero-badge">🔬 Advanced Health Screening</div>
+    <h1>Smart Health Risk Prediction</h1>
+    <p>Enter your health details below and receive an instant, personalised risk assessment with clear, actionable recommendations.</p>
+  </div>
+
+  <!-- ── Stats Bar ── -->
+  <div class="stats-bar fade-in delay-1" id="statsBar">
+    <div class="stat-card">
+      <div class="stat-icon">📋</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-label">Total Assessments</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-value" id="statLow">—</div>
+      <div class="stat-label">Low Risk Cases</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🚨</div>
+      <div class="stat-value" id="statHigh">—</div>
+      <div class="stat-label">High Risk Cases</div>
+    </div>
+  </div>
+
+  <!-- ── Error Alert ── -->
+  {% if error %}
+  <div class="alert alert-error fade-in">
+    ⚠️ {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- ── Assessment Form ── -->
+  <form id="healthForm" action="/predict" method="POST" novalidate>
+
+    <!-- Section 1: Personal Info -->
+    <div class="form-card fade-in delay-1">
+      <div class="form-card-header">
+        <div class="section-icon blue">👤</div>
+        <div>
+          <div class="section-title">Personal Information</div>
+          <div class="section-sub">Basic demographic details</div>
+        </div>
+      </div>
+      <div class="form-grid form-grid-3">
+        <div class="form-group">
+          <label class="form-label" for="name">Full Name <span>*</span></label>
+          <input type="text" id="name" name="name" class="form-control"
+                 placeholder="e.g. Alex Johnson" required minlength="2" maxlength="80" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="age">Age (years) <span>*</span></label>
+          <input type="number" id="age" name="age" class="form-control"
+                 placeholder="e.g. 35" required min="1" max="120" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="gender">Gender <span>*</span></label>
+          <select id="gender" name="gender" class="form-control" required>
+            <option value="" disabled selected>Select gender</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other / Prefer not to say</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 2: Body Metrics -->
+    <div class="form-card fade-in delay-1">
+      <div class="form-card-header">
+        <div class="section-icon green">📏</div>
+        <div>
+          <div class="section-title">Body Measurements</div>
+          <div class="section-sub">Used to calculate your BMI</div>
+        </div>
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="height">Height (cm) <span>*</span></label>
+          <input type="number" id="height" name="height" class="form-control"
+                 placeholder="e.g. 170" required min="50" max="250" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="weight">Weight (kg) <span>*</span></label>
+          <input type="number" id="weight" name="weight" class="form-control"
+                 placeholder="e.g. 70" required min="10" max="500" step="0.1" />
+        </div>
+      </div>
+      <!-- Live BMI Preview -->
+      <div id="bmiPreview" style="display:none; margin-top:1rem;
+           background:rgba(88,166,255,0.07); border:1px solid rgba(88,166,255,0.2);
+           border-radius:10px; padding:1rem; text-align:center;">
+        <span style="font-size:0.85rem; color:var(--text-secondary);">Estimated BMI:</span>
+        <span id="bmiValue" style="font-size:1.4rem; font-weight:700; color:var(--accent-blue); margin-left:10px;"></span>
+        <span id="bmiCategory" style="margin-left:10px; font-size:0.8rem; padding:3px 10px; border-radius:99px; font-weight:600;"></span>
+      </div>
+    </div>
+
+    <!-- Section 3: Vitals -->
+    <div class="form-card fade-in delay-2">
+      <div class="form-card-header">
+        <div class="section-icon purple">❤️</div>
+        <div>
+          <div class="section-title">Vital Signs</div>
+          <div class="section-sub">Key health indicators</div>
+        </div>
+      </div>
+      <div class="form-grid form-grid-3">
+        <div class="form-group">
+          <label class="form-label tooltip-wrap" for="blood_pressure">
+            Blood Pressure
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">Enter as Systolic/Diastolic, e.g. 120/80 (optional)</span>
+          </label>
+          <input type="text" id="blood_pressure" name="blood_pressure" class="form-control"
+                 placeholder="e.g. 120/80 (optional)" pattern="\d{2,3}\/\d{2,3}" />
+        </div>
+        <div class="form-group">
+          <label class="form-label tooltip-wrap" for="heart_rate">
+            Heart Rate (bpm) <span>*</span>
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">Normal resting heart rate: 60–100 bpm</span>
+          </label>
+          <input type="number" id="heart_rate" name="heart_rate" class="form-control"
+                 placeholder="e.g. 72" required min="30" max="220" />
+        </div>
+        <div class="form-group">
+          <label class="form-label tooltip-wrap" for="blood_sugar">
+            Blood Sugar (mg/dL) <span>*</span>
+            <span class="tooltip-icon">?</span>
+            <span class="tooltip-box">Normal fasting blood sugar: 70–99 mg/dL</span>
+          </label>
+          <input type="number" id="blood_sugar" name="blood_sugar" class="form-control"
+                 placeholder="e.g. 95" required min="50" max="600" step="0.1" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 4: Lifestyle -->
+    <div class="form-card fade-in delay-2">
+      <div class="form-card-header">
+        <div class="section-icon red">🏃</div>
+        <div>
+          <div class="section-title">Lifestyle Factors</div>
+          <div class="section-sub">Habits that significantly affect your risk</div>
+        </div>
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label" for="smoking">Smoking Status <span>*</span></label>
+          <select id="smoking" name="smoking" class="form-control" required>
+            <option value="" disabled selected>Select status</option>
+            <option value="No">No — Never or Quit</option>
+            <option value="Yes">Yes — Current Smoker</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="exercise_freq">Exercise Frequency <span>*</span></label>
+          <select id="exercise_freq" name="exercise_freq" class="form-control" required>
+            <option value="" disabled selected>Select frequency</option>
+            <option value="Never">Never</option>
+            <option value="Rarely">Rarely (1–2x/month)</option>
+            <option value="Sometimes">Sometimes (1–2x/week)</option>
+            <option value="Often">Often (3–4x/week)</option>
+            <option value="Daily">Daily</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="btn-submit-wrapper fade-in delay-3">
+      <button type="submit" class="btn btn-primary btn-submit" id="submitBtn">
+        ✦ &nbsp;Analyse My Health Risk
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+  <p>Smart Health Risk Prediction System &nbsp;&middot;&nbsp; Built with <span>♥</span> using Flask &amp; SQLite</p>
+  <p style="margin-top:6px; font-size:0.76rem;">This tool is for informational purposes only and does not replace professional medical advice.</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

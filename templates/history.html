@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>History — Smart Health Risk Prediction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<nav class="navbar">
+  <a href="/" class="navbar-brand"><div class="logo-icon">🫀</div>HealthRisk AI</a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Assessment</a>
+    <a href="/history" class="nav-link active">History</a>
+  </div>
+</nav>
+<div class="container">
+  <div class="hero fade-in">
+    <div class="hero-badge">📚 Assessment Records</div>
+    <h1>Health Assessment History</h1>
+    <p>Review all past risk assessments stored in the database.</p>
+  </div>
+
+  {% if records|length > 0 %}
+  <div class="stats-bar fade-in delay-1">
+    <div class="stat-card"><div class="stat-icon">📋</div><div class="stat-value">{{ records|length }}</div><div class="stat-label">Total Records</div></div>
+    <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value">{{ low_count }}</div><div class="stat-label">Low Risk</div></div>
+    <div class="stat-card"><div class="stat-icon">🚨</div><div class="stat-value">{{ high_count }}</div><div class="stat-label">High Risk</div></div>
+  </div>
+
+  <div class="charts-grid fade-in delay-1">
+    <div class="chart-card"><div class="chart-title">📊 Risk Distribution</div><canvas id="riskPieChart" style="max-height:220px;"></canvas></div>
+    <div class="chart-card"><div class="chart-title">📈 BMI Trends & Risk Scores</div><canvas id="bmiLineChart" style="max-height:220px;"></canvas></div>
+  </div>
+
+  <div class="form-card fade-in delay-2" style="padding:0;overflow:hidden;">
+    <div class="table-wrapper"><table>
+      <thead><tr><th>#</th><th>Name</th><th>Age</th><th>BMI</th><th>Heart Rate</th><th>Blood Sugar</th><th>Score</th><th>Risk</th><th>Date</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for r in records %}
+      <tr>
+        <td>{{ r['id'] }}</td><td><strong>{{ r['name'] }}</strong></td><td>{{ r['age'] }}</td>
+        <td>{{ r['bmi'] }}</td><td>{{ r['heart_rate'] }} bpm</td><td>{{ r['blood_sugar'] }}</td>
+        <td><strong>{{ r['risk_score'] }}</strong>/11</td>
+        <td><span class="risk-chip {{ r['risk_level'] }}">{{ r['risk_level'] }}</span></td>
+        <td>{{ r['created_at'] }}</td>
+        <td><form action="/delete/{{ r['id'] }}" method="POST" onsubmit="return confirm('Delete?');" style="margin:0;"><button type="submit" class="btn btn-danger btn-sm">🗑️</button></form></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+  {% else %}
+  <div class="form-card fade-in"><div class="empty-state"><div class="empty-icon">📭</div><h3>No Assessments Yet</h3><p>Complete your first assessment to see records here.</p><a href="/" class="btn btn-primary" style="margin-top:1rem;">🔍 Start Assessment</a></div></div>
+  {% endif %}
+  <div class="action-row fade-in delay-3"><a href="/" class="btn btn-primary">🔄 New Assessment</a></div>
+</div>
+<footer><p>Smart Health Risk Prediction System &nbsp;&middot;&nbsp; Built with <span>♥</span> using Flask &amp; SQLite</p></footer>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+{% if records|length > 0 %}
+const low = {{ low_count }};
+const med = {{ med_count }};
+const high = {{ high_count }};
+
+new Chart(document.getElementById('riskPieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+    datasets: [{
+      data: [low, med, high],
+      backgroundColor: [
+        'rgba(63, 185, 80, 0.7)',
+        'rgba(210, 153, 34, 0.7)',
+        'rgba(248, 81, 73, 0.7)'
+      ],
+      borderColor: [
+        '#3fb950',
+        '#d29922',
+        '#f85149'
+      ],
+      borderWidth: 1.5,
+      cutout: '70%'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#8b949e',
+          padding: 15,
+          font: { family: 'Inter', size: 11 },
+          usePointStyle: true,
+          pointStyleWidth: 8
+        }
+      },
+      tooltip: {
+        backgroundColor: '#1c2128',
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        borderColor: '#30363d',
+        borderWidth: 1
+      }
+    }
+  }
+});
+
+const recent = {{ trend_data|tojson }};
+
+const trendCtx = document.getElementById('bmiLineChart').getContext('2d');
+
+const bmiGrad = trendCtx.createLinearGradient(0, 0, 0, 200);
+bmiGrad.addColorStop(0, 'rgba(88, 166, 255, 0.25)');
+bmiGrad.addColorStop(1, 'rgba(88, 166, 255, 0.01)');
+
+const scoreGrad = trendCtx.createLinearGradient(0, 0, 0, 200);
+scoreGrad.addColorStop(0, 'rgba(188, 140, 255, 0.25)');
+scoreGrad.addColorStop(1, 'rgba(188, 140, 255, 0.01)');
+
+new Chart(trendCtx, {
+  type: 'line',
+  data: {
+    labels: recent.map(r => r.label),
+    datasets: [
+      {
+        label: 'BMI',
+        data: recent.map(r => r.bmi),
+        yAxisID: 'yBmi',
+        borderColor: '#58a6ff',
+        backgroundColor: bmiGrad,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#58a6ff'
+      },
+      {
+        label: 'Risk Score',
+        data: recent.map(r => r.score),
+        yAxisID: 'yScore',
+        borderColor: '#bc8cff',
+        backgroundColor: scoreGrad,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#bc8cff'
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: {
+        grid: { color: 'rgba(48, 54, 61, 0.3)' },
+        ticks: { color: '#8b949e', font: { family: 'Inter', size: 10 }, maxRotation: 45 }
+      },
+      yBmi: {
+        type: 'linear',
+        position: 'left',
+        grid: { color: 'rgba(48, 54, 61, 0.3)' },
+        ticks: { color: '#58a6ff', font: { family: 'Inter', size: 10 } },
+        title: { display: true, text: 'BMI', color: '#58a6ff', font: { size: 10, weight: 'bold' } }
+      },
+      yScore: {
+        type: 'linear',
+        position: 'right',
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#bc8cff', font: { family: 'Inter', size: 10 } },
+        min: 0,
+        max: 11,
+        title: { display: true, text: 'Risk Score', color: '#bc8cff', font: { size: 10, weight: 'bold' } }
+      }
+    },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#8b949e',
+          padding: 15,
+          font: { family: 'Inter', size: 11 },
+          usePointStyle: true
+        }
+      },
+      tooltip: {
+        backgroundColor: '#1c2128',
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        borderColor: '#30363d',
+        borderWidth: 1
+      }
+    }
+  }
+});
+{% endif %}
+}); // end DOMContentLoaded
+</script>
+</body>
+</html>

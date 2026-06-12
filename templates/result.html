@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Your personalized health risk assessment results." />
+  <title>Results — Smart Health Risk Prediction</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🫀</text></svg>" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <!-- html2pdf for PDF download -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+
+<!-- ── Navbar ── -->
+<nav class="navbar">
+  <a href="/" class="navbar-brand">
+    <div class="logo-icon">🫀</div>
+    HealthRisk AI
+  </a>
+  <div class="nav-links">
+    <a href="/" class="nav-link">Assessment</a>
+    <a href="/history" class="nav-link">History</a>
+  </div>
+</nav>
+
+<div class="container" id="reportContent">
+
+  <!-- ── Risk Banner ── -->
+  <div class="risk-banner {{ level|lower }} fade-in">
+    <div class="risk-icon">
+      {% if level == "Low" %}🛡️{% elif level == "Medium" %}⚠️{% else %}🚨{% endif %}
+    </div>
+    <div class="risk-label">Health Risk Level</div>
+    <div class="risk-title">{{ level }} Risk</div>
+    <div class="risk-subtitle">
+      Assessment for <strong>{{ name }}</strong> &nbsp;·&nbsp; {{ created_at }}
+    </div>
+  </div>
+
+  <!-- ── Key Metrics ── -->
+  <div class="metrics-grid fade-in delay-1">
+    <div class="metric-card">
+      <div class="metric-icon">⚖️</div>
+      <div class="metric-value">{{ bmi }}</div>
+      <div class="metric-label">Body Mass Index</div>
+      <div class="metric-badge
+        {% if bmi < 18.5 %}badge-yellow{% elif bmi < 25 %}badge-green{% elif bmi < 30 %}badge-yellow{% else %}badge-red{% endif %}">
+        {{ bmi_category }}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon">📊</div>
+      <div class="metric-value">{{ score }}<span style="font-size:0.8rem; color:var(--text-secondary);">/11</span></div>
+      <div class="metric-label">Risk Score</div>
+      <div class="metric-badge
+        {% if score <= 3 %}badge-green{% elif score <= 7 %}badge-yellow{% else %}badge-red{% endif %}">
+        {{ level }}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon">❤️</div>
+      <div class="metric-value">{{ heart_rate }}</div>
+      <div class="metric-label">Heart Rate (bpm)</div>
+      <div class="metric-badge {% if heart_rate <= 100 %}badge-green{% else %}badge-red{% endif %}">
+        {% if heart_rate <= 100 %}Normal{% else %}Elevated{% endif %}
+      </div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-icon">🍬</div>
+      <div class="metric-value">{{ blood_sugar }}</div>
+      <div class="metric-label">Blood Sugar (mg/dL)</div>
+      <div class="metric-badge {% if blood_sugar <= 140 %}badge-green{% else %}badge-red{% endif %}">
+        {% if blood_sugar <= 140 %}Normal{% else %}Elevated{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts ── -->
+  <div class="charts-grid fade-in delay-2">
+    <div class="chart-card">
+      <div class="chart-title">📊 Risk Score Gauge</div>
+      <div class="chart-canvas-wrapper">
+        <canvas id="scoreChart"></canvas>
+      </div>
+      <div class="chart-info">
+        <span class="info-value">{{ score }} <span class="info-label">/ 11</span></span>
+        <span class="info-badge badge-{{ level|lower }}">{{ level }} Risk</span>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">⚖️ BMI Gauge</div>
+      <div class="chart-canvas-wrapper">
+        <canvas id="bmiChart"></canvas>
+      </div>
+      <div class="chart-info">
+        <span class="info-value">{{ bmi }} <span class="info-label">kg/m²</span></span>
+        <span class="info-badge badge-bmi">{{ bmi_category }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Score Breakdown ── -->
+  <div class="breakdown-card fade-in delay-2">
+    <div class="breakdown-title">🧮 Score Breakdown</div>
+    {% if breakdown|length > 0 %}
+      {% for item in breakdown %}
+      <div class="breakdown-item">
+        <span>{{ item.factor }}</span>
+        <span class="breakdown-points">{{ item.points }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="no-factors">
+        🎉 No risk factors detected — great job staying healthy!
+      </div>
+    {% endif %}
+    <div class="score-total">
+      <span>Total Risk Score</span>
+      <span class="score-number">{{ score }} / 11</span>
+    </div>
+  </div>
+
+  <!-- ── Patient Details ── -->
+  <div class="breakdown-card fade-in delay-2">
+    <div class="breakdown-title">📋 Patient Details</div>
+    <div class="breakdown-item"><span>Name</span><span>{{ name }}</span></div>
+    <div class="breakdown-item"><span>Age</span><span>{{ age }} years</span></div>
+    <div class="breakdown-item"><span>Gender</span><span>{{ gender }}</span></div>
+    <div class="breakdown-item"><span>Height</span><span>{{ height_cm }} cm</span></div>
+    <div class="breakdown-item"><span>Weight</span><span>{{ weight_kg }} kg</span></div>
+    <div class="breakdown-item"><span>Blood Pressure</span><span>{{ blood_pressure }}</span></div>
+    <div class="breakdown-item"><span>Smoking</span><span>{{ smoking }}</span></div>
+    <div class="breakdown-item"><span>Exercise</span><span>{{ exercise_freq }}</span></div>
+  </div>
+
+  <!-- ── Recommendations ── -->
+  <div class="rec-card fade-in delay-3">
+    <div class="breakdown-title">💡 Personalized Recommendations</div>
+    {% for rec in recommendations %}
+    <div class="rec-item" style="animation-delay: {{ loop.index * 0.08 }}s;">
+      {{ rec }}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- ── Action Buttons ── -->
+  <div class="action-row fade-in delay-3">
+    <a href="/" class="btn btn-primary">🔄 New Assessment</a>
+    <button onclick="downloadPDF()" class="btn btn-secondary" id="downloadBtn">📄 Download Report (PDF)</button>
+    <a href="/history" class="btn btn-secondary">📚 View History</a>
+  </div>
+
+</div>
+
+<!-- ── Footer ── -->
+<footer>
+  <p>Smart Health Risk Prediction System &nbsp;&middot;&nbsp; Built with <span>♥</span> using Flask &amp; SQLite</p>
+  <p style="margin-top:6px; font-size:0.76rem;">This tool is for informational purposes only and does not replace professional medical advice.</p>
+</footer>
+
+<script>
+// ── Shared Needle Plugin ──
+const needlePlugin = {
+  id: 'needle',
+  afterDraw(chart) {
+    const { ctx, chartArea } = chart;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta.data || !meta.data[0]) return;
+    const arc = meta.data[0];
+
+    // Chart.js 4.x: coordinates and radius live directly on the arc element
+    const centerX = arc.x;
+    const centerY = arc.y;
+    const outerR  = arc.outerRadius;
+    const innerR  = arc.innerRadius;
+    const needleLength = outerR - (outerR - innerR) * 0.3;
+
+    const val        = chart.config.options.plugins.needle.value;
+    const max        = chart.config.options.plugins.needle.max;
+    const clamped    = Math.min(Math.max(val, 0), max);
+
+    // The chart uses circumference:180, rotation:-90 (i.e. starts at left = Math.PI)
+    // Sweep goes clockwise from Math.PI to 2*Math.PI (right side)
+    const startAngle = Math.PI;          // left of semicircle
+    const angle      = startAngle + (clamped / max) * Math.PI;
+
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(angle);
+
+    // Draw slim needle
+    ctx.beginPath();
+    ctx.moveTo(0, -3);
+    ctx.lineTo(needleLength, 0);
+    ctx.lineTo(0, 3);
+    ctx.closePath();
+    ctx.fillStyle = '#e6edf3';
+    ctx.shadowColor = 'rgba(255,255,255,0.3)';
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Center pivot dot
+    ctx.beginPath();
+    ctx.arc(0, 0, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#0d1117';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#e6edf3';
+    ctx.stroke();
+
+    ctx.restore();
+  }
+};
+
+// ── Risk Score Gauge Chart ──
+const scoreCtx = document.getElementById('scoreChart').getContext('2d');
+const scoreVal = {{ score }};
+new Chart(scoreCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Low Risk (0-3)', 'Medium Risk (4-7)', 'High Risk (8-11)'],
+    datasets: [{
+      data: [3, 4, 4],
+      backgroundColor: [
+        'rgba(52, 211, 153, 0.4)',
+        'rgba(251, 191, 36, 0.4)',
+        'rgba(251, 113, 133, 0.4)'
+      ],
+      borderColor: [
+        '#34d399',
+        '#fbbf24',
+        '#fb7185'
+      ],
+      borderWidth: 2,
+      cutout: '74%'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    circumference: 180,
+    // rotation:-90 means start at the left (9 o'clock position = Math.PI radians)
+    rotation: -90,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1c2128',
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        borderColor: '#30363d',
+        borderWidth: 1
+      },
+      needle: {
+        value: scoreVal,
+        max: 11
+      }
+    }
+  },
+  plugins: [needlePlugin]
+});
+
+// ── BMI Gauge Chart ──
+const bmiCtx = document.getElementById('bmiChart').getContext('2d');
+const bmiVal = {{ bmi }};
+new Chart(bmiCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Underweight (<18.5)', 'Normal (18.5–25)', 'Overweight (25–30)', 'Obese (≥30)'],
+    datasets: [{
+      data: [18.5, 6.5, 5, 10],
+      backgroundColor: [
+        'rgba(251, 191, 36, 0.35)',
+        'rgba(52, 211, 153, 0.45)',
+        'rgba(251, 191, 36, 0.5)',
+        'rgba(251, 113, 133, 0.45)'
+      ],
+      borderColor: [
+        '#fbbf24',
+        '#34d399',
+        '#f59e0b',
+        '#fb7185'
+      ],
+      borderWidth: 2,
+      cutout: '74%'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    circumference: 180,
+    rotation: -90,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1c2128',
+        titleColor: '#e6edf3',
+        bodyColor: '#8b949e',
+        borderColor: '#30363d',
+        borderWidth: 1
+      },
+      needle: {
+        value: bmiVal,
+        max: 40
+      }
+    }
+  },
+  plugins: [needlePlugin]
+});
+
+// ── PDF Download ──
+function downloadPDF() {
+  const btn = document.getElementById('downloadBtn');
+  btn.textContent = '⏳ Generating PDF…';
+  btn.disabled = true;
+
+  const element = document.getElementById('reportContent');
+  const safeName = {{ name|tojson }}.replace(/[\s"']/g, '_');
+  const opt = {
+    margin:       0.5,
+    filename:     `HealthRisk_Report_${safeName}.pdf`,
+    image:        { type: 'jpeg', quality: 0.95 },
+    html2canvas:  { scale: 2, useCORS: true, backgroundColor: '#0d1117' },
+    jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    btn.textContent = '📄 Download Report (PDF)';
+    btn.disabled = false;
+  });
+}
+</script>
+</body>
+</html>
