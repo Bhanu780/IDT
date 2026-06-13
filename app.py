@@ -9,7 +9,13 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-DB_PATH = os.path.join(os.path.dirname(__file__), "health_records.db")
+
+# Vercel's filesystem is read-only — only /tmp is writable on serverless.
+# Locally, use the project directory as before.
+if os.environ.get("VERCEL"):
+    DB_PATH = "/tmp/health_records.db"
+else:
+    DB_PATH = os.path.join(os.path.dirname(__file__), "health_records.db")
 
 # ─────────────────────────────────────────────
 # Database Initialization
@@ -262,10 +268,14 @@ def api_stats():
 
 
 # ─────────────────────────────────────────────
-# Entry Point
+# Initialize DB at module level (required for Vercel serverless cold starts)
+# ─────────────────────────────────────────────
+init_db()
+
+# ─────────────────────────────────────────────
+# Entry Point (local dev only)
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-    init_db()
     print("[OK] Database initialized.")
     print("[>>] Server starting at http://127.0.0.1:5000")
     app.run(debug=True)
